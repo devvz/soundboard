@@ -752,10 +752,12 @@
             const sound = sounds.find(s => s.id === soundId);
             if (!sound) return;
 
+            // Always create a new instance, regardless of current playing state
             const url = URL.createObjectURL(sound.file);
             const audio = new Audio(url);
             const instanceId = Date.now() + Math.random();
 
+            // Setup event listeners
             audio.onended = () => {
                 cleanupAudioInstance(instanceId);
             };
@@ -765,6 +767,7 @@
                 cleanupAudioInstance(instanceId);
             };
 
+            // Store the instance before trying to play
             activeAudioInstances.set(instanceId, {
                 audio: audio,
                 soundId: soundId,
@@ -772,7 +775,9 @@
                 sound: sound
             });
 
+            // Start playback immediately
             audio.play().then(() => {
+                console.log(`Playing new instance of: ${sound.name}`);
                 updatePlayingIndicators();
             }).catch(err => {
                 console.error('Playback failed:', err);
