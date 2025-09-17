@@ -1,13 +1,4 @@
-// Sorting
-        function setSortMode(mode) {
-            sortMode = mode;
-            
-            // Update button states
-            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`sort${mode.charAt(0).toUpperCase() + mode.slice(1)}`).classList.add('active');
-            
-            renderSounds();
-        }<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -416,6 +407,49 @@
             color: var(--text-secondary);
         }
 
+        .size-controls, .sort-controls {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            justify-content: center;
+        }
+
+        .size-btn, .sort-btn {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border-color);
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        .size-btn.active, .sort-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .size-btn:hover, .sort-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Install prompt */
+        .install-prompt {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .install-prompt.show {
+            display: block;
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .sounds-grid.small {
@@ -446,77 +480,6 @@
                 font-size: 1.75rem;
             }
         }
-
-        /* Install prompt */
-        .install-prompt {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white;
-            padding: 1rem;
-            text-align: center;
-            border-radius: 0.75rem;
-            margin-bottom: 1rem;
-            display: none;
-        }
-
-        .install-prompt.show {
-            display: block;
-        }
-
-        .size-controls {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-            justify-content: center;
-        }
-
-        .size-btn {
-            padding: 0.5rem 0.75rem;
-            border: 1px solid var(--border-color);
-            background-color: var(--background-color);
-            color: var(--text-primary);
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-        }
-
-        .size-btn.active {
-            background-color: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        .size-btn:hover {
-            transform: scale(1.05);
-        }
-
-        .sort-controls {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-            justify-content: center;
-        }
-
-        .sort-btn {
-            padding: 0.5rem 0.75rem;
-            border: 1px solid var(--border-color);
-            background-color: var(--background-color);
-            color: var(--text-primary);
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-        }
-
-        .sort-btn.active {
-            background-color: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        .sort-btn:hover {
-            transform: scale(1.05);
-        }
     </style>
 </head>
 <body>
@@ -541,7 +504,7 @@
                     <button class="btn btn-primary" onclick="openImportModal()">
                         ➕ Import
                     </button>
-                    <button class="btn btn-danger" id="stopBtn" onclick="stopSound()" style="display: none;">
+                    <button class="btn btn-danger" id="stopBtn" onclick="stopAllSounds()" style="display: none;">
                         ⏹️
                     </button>
                 </div>
@@ -649,7 +612,7 @@
     <script>
         // Application State
         let sounds = [];
-        let activeAudioInstances = new Map(); // Track multiple audio instances
+        let activeAudioInstances = new Map();
         let currentEditingSoundId = null;
         let sortMode = 'name';
         let tileSize = 'medium';
@@ -664,15 +627,6 @@
             setupProgressAnimation();
         });
 
-        // Smooth progress bar animation
-        function setupProgressAnimation() {
-            setInterval(() => {
-                if (activeAudioInstances.size > 0) {
-                    updateSoundButtons(); // This will update the progress bars
-                }
-            }, 100); // Update every 100ms for smooth animation
-        }
-
         // PWA Installation
         function setupPWA() {
             window.addEventListener('beforeinstallprompt', (e) => {
@@ -681,7 +635,6 @@
                 document.getElementById('installPrompt').classList.add('show');
             });
 
-            // Hide install prompt if already installed
             window.addEventListener('appinstalled', () => {
                 hideInstallPrompt();
             });
@@ -708,7 +661,6 @@
             const savedSounds = localStorage.getItem('soundboard-sounds');
             if (savedSounds) {
                 sounds = JSON.parse(savedSounds);
-                // Convert file data back to File objects
                 sounds = sounds.map(sound => ({
                     ...sound,
                     file: new File([new Uint8Array(sound.fileData)], sound.fileName, { type: sound.fileType })
@@ -718,13 +670,12 @@
         }
 
         function saveSounds() {
-            // Convert File objects to serializable data
             const soundsToSave = sounds.map(sound => ({
                 ...sound,
                 fileData: Array.from(new Uint8Array(sound.fileArrayBuffer)),
                 fileType: sound.file.type,
                 fileName: sound.file.name,
-                file: undefined // Remove the File object before saving
+                file: undefined
             }));
             
             localStorage.setItem('soundboard-sounds', JSON.stringify(soundsToSave));
@@ -748,7 +699,6 @@
             const files = Array.from(event.target.files);
             
             for (const file of files) {
-                // Check if it's an audio file by extension or MIME type
                 const isAudioFile = file.type.startsWith('audio/') || 
                                   ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.wma'].some(ext => 
                                       file.name.toLowerCase().endsWith(ext));
@@ -765,7 +715,6 @@
                             duration: null
                         };
                         
-                        // Get duration
                         const audio = new Audio();
                         const url = URL.createObjectURL(file);
                         audio.onloadedmetadata = () => {
@@ -775,7 +724,6 @@
                             renderSounds();
                         };
                         audio.onerror = () => {
-                            // If audio fails to load, still add the file but without duration
                             console.warn(`Could not load audio metadata for ${file.name}`);
                             URL.revokeObjectURL(url);
                             saveSounds();
@@ -796,8 +744,6 @@
             saveSounds();
             renderSounds();
             closeImportModal();
-            
-            // Clear input
             event.target.value = '';
         }
 
@@ -806,12 +752,10 @@
             const sound = sounds.find(s => s.id === soundId);
             if (!sound) return;
 
-            // Create new audio instance
             const url = URL.createObjectURL(sound.file);
             const audio = new Audio(url);
             const instanceId = Date.now() + Math.random();
 
-            // Setup event listeners
             audio.onended = () => {
                 cleanupAudioInstance(instanceId);
             };
@@ -821,7 +765,6 @@
                 cleanupAudioInstance(instanceId);
             };
 
-            // Store the audio instance
             activeAudioInstances.set(instanceId, {
                 audio: audio,
                 soundId: soundId,
@@ -829,7 +772,6 @@
                 sound: sound
             });
 
-            // Play audio
             audio.play().then(() => {
                 updatePlayingIndicators();
             }).catch(err => {
@@ -856,7 +798,6 @@
                 activeAudioInstances.delete(instanceId);
                 updatePlayingIndicators();
                 
-                // Hide stop button if no sounds are playing
                 if (activeAudioInstances.size === 0) {
                     document.getElementById('stopBtn').style.display = 'none';
                 }
@@ -864,14 +805,12 @@
         }
 
         function updatePlayingIndicators() {
-            // Show/hide stop button
             if (activeAudioInstances.size > 0) {
                 document.getElementById('stopBtn').style.display = 'block';
             } else {
                 document.getElementById('stopBtn').style.display = 'none';
             }
             
-            // Update sound cards to show playing state
             renderSounds();
         }
 
@@ -882,11 +821,6 @@
                 }
             }
             return false;
-        }
-
-        // Legacy function for compatibility
-        function stopSound() {
-            stopAllSounds();
         }
 
         function formatTime(seconds) {
@@ -900,15 +834,12 @@
         function setTileSize(size) {
             tileSize = size;
             
-            // Update button states
             document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`size${size.charAt(0).toUpperCase() + size.slice(1).replace('-', '')}`).classList.add('active');
             
-            // Update grid class
             const grid = document.getElementById('soundsGrid');
             grid.className = `sounds-grid ${size}`;
             
-            // Save preference
             localStorage.setItem('soundboard-tile-size', size);
         }
 
@@ -917,6 +848,16 @@
             if (savedSize) {
                 setTileSize(savedSize);
             }
+        }
+
+        // Sorting
+        function setSortMode(mode) {
+            sortMode = mode;
+            
+            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`sort${mode.charAt(0).toUpperCase() + mode.slice(1)}`).classList.add('active');
+            
+            renderSounds();
         }
 
         function sortSounds(soundsToSort) {
@@ -945,7 +886,6 @@
             const noResults = document.getElementById('noResults');
             const soundsContainer = document.getElementById('soundsContainer');
             
-            // Show/hide appropriate views
             if (sounds.length === 0) {
                 emptyState.style.display = 'block';
                 soundsContainer.style.display = 'none';
@@ -960,7 +900,6 @@
                 noResults.style.display = 'none';
             }
             
-            // Render sound cards
             grid.innerHTML = '';
             filteredSounds.forEach(sound => {
                 const card = createSoundCard(sound);
@@ -979,7 +918,6 @@
                 editSound(sound.id);
             };
             
-            // Long press for mobile
             let pressTimer;
             card.ontouchstart = (e) => {
                 pressTimer = setTimeout(() => {
@@ -994,7 +932,6 @@
             const duration = sound.duration ? formatTime(sound.duration) : '';
             const dateAdded = new Date(sound.dateAdded).toLocaleDateString();
             
-            // Create animated progress for playing sounds
             const playingInstances = [];
             activeAudioInstances.forEach(instance => {
                 if (instance.soundId === sound.id) {
@@ -1004,7 +941,6 @@
             
             let progressWidth = 0;
             if (playingInstances.length > 0) {
-                // Show progress of the first instance
                 const firstInstance = playingInstances[0];
                 if (firstInstance.audio.duration) {
                     progressWidth = (firstInstance.audio.currentTime / firstInstance.audio.duration) * 100;
@@ -1033,13 +969,12 @@
         }
 
         function updateSoundButtons() {
-            renderSounds(); // Simple approach - re-render everything
+            renderSounds();
         }
 
         function getFilteredSounds() {
             let filtered = [...sounds];
             
-            // Filter by search
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             if (searchTerm) {
                 filtered = filtered.filter(s => 
@@ -1062,7 +997,6 @@
             currentEditingSoundId = soundId;
             document.getElementById('editName').value = sound.name;
             
-            // Show file info
             const fileInfo = document.getElementById('fileInfo');
             fileInfo.innerHTML = `
                 <div><strong>File:</strong> ${sound.file.name}</div>
@@ -1095,7 +1029,6 @@
         function deleteCurrentSound() {
             if (!currentEditingSoundId) return;
             
-            // Stop any instances of this sound that are playing
             activeAudioInstances.forEach((instance, instanceId) => {
                 if (instance.soundId === currentEditingSoundId) {
                     cleanupAudioInstance(instanceId);
@@ -1106,6 +1039,15 @@
             saveSounds();
             renderSounds();
             closeEditModal();
+        }
+
+        // Smooth progress bar animation
+        function setupProgressAnimation() {
+            setInterval(() => {
+                if (activeAudioInstances.size > 0) {
+                    updateSoundButtons();
+                }
+            }, 100);
         }
 
         // Keyboard shortcuts
@@ -1127,4 +1069,5 @@
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk15IFNvdW5kYm9hcmQiLAogICJzaG9ydF9uYW1lIjogIlNvdW5kYm9hcmQiLAogICJkZXNjcmlwdGlvbiI6ICJBIG1vYmlsZS1mcmllbmRseSBzb3VuZGJvYXJkIGFwcCIsCiAgInN0YXJ0X3VybCI6ICIuLyIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDdBRkYiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNGMkYyRjciLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWwsPHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nJTIzMDA3QUZGJz48cGF0aCBkPSdNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJzNC40OCAxMCAxMCAxMCAxMC00LjQ4IDEwLTEwUzE3LjUyIDIgMTIgMnptLTIgMTQuNXYtOWw2IDQuNS02IDQuNXonLz48L3N2Zz4iLAogICAgICAic2l6ZXMiOiAiMTkyeDE5MiIsCiAgICAgICJ0eXBlIjogImltYWdlL3N2Zyt4bWwiCiAgICB9CiAgXQp9">
+</body>
 </html>
