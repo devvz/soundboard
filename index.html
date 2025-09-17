@@ -534,7 +534,7 @@
                 
                 <div class="form-group">
                     <label class="form-label">Select Audio Files</label>
-                    <input type="file" class="file-input" id="audioInput" accept="audio/*" multiple onchange="handleFileImport(event)">
+                    <input type="file" class="file-input" id="audioInput" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.wma" multiple onchange="handleFileImport(event)">
                     <button class="btn btn-primary" onclick="document.getElementById('audioInput').click()">
                         📁 Choose Files
                     </button>
@@ -663,29 +663,48 @@
             const files = Array.from(event.target.files);
             
             for (const file of files) {
-                if (file.type.startsWith('audio/')) {
-                    const arrayBuffer = await file.arrayBuffer();
-                    const sound = {
-                        id: Date.now() + Math.random(),
-                        name: file.name.replace(/\.[^/.]+$/, ""),
-                        file: file,
-                        fileArrayBuffer: arrayBuffer,
-                        dateAdded: new Date().toISOString(),
-                        duration: null
-                    };
-                    
-                    // Get duration
-                    const audio = new Audio();
-                    const url = URL.createObjectURL(file);
-                    audio.onloadedmetadata = () => {
-                        sound.duration = audio.duration;
-                        URL.revokeObjectURL(url);
-                        saveSounds();
-                        renderSounds();
-                    };
-                    audio.src = url;
-                    
-                    sounds.push(sound);
+                // Check if it's an audio file by extension or MIME type
+                const isAudioFile = file.type.startsWith('audio/') || 
+                                  ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.wma'].some(ext => 
+                                      file.name.toLowerCase().endsWith(ext));
+                
+                if (isAudioFile) {
+                    try {
+                        const arrayBuffer = await file.arrayBuffer();
+                        const sound = {
+                            id: Date.now() + Math.random(),
+                            name: file.name.replace(/\.[^/.]+$/, ""),
+                            file: file,
+                            fileArrayBuffer: arrayBuffer,
+                            dateAdded: new Date().toISOString(),
+                            duration: null
+                        };
+                        
+                        // Get duration
+                        const audio = new Audio();
+                        const url = URL.createObjectURL(file);
+                        audio.onloadedmetadata = () => {
+                            sound.duration = audio.duration;
+                            URL.revokeObjectURL(url);
+                            saveSounds();
+                            renderSounds();
+                        };
+                        audio.onerror = () => {
+                            // If audio fails to load, still add the file but without duration
+                            console.warn(`Could not load audio metadata for ${file.name}`);
+                            URL.revokeObjectURL(url);
+                            saveSounds();
+                            renderSounds();
+                        };
+                        audio.src = url;
+                        
+                        sounds.push(sound);
+                        console.log(`Added sound: ${sound.name}`);
+                    } catch (error) {
+                        console.error(`Error processing file ${file.name}:`, error);
+                    }
+                } else {
+                    console.warn(`Skipped non-audio file: ${file.name}`);
                 }
             }
             
